@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nova — profile</title>
+
+<!-- Fonts: a sturdy grotesk for display, a quiet sans for body/data -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================= TOKENS ============================= */
+  :root{
+    --bg-1:#0a0a12;
+    --bg-2:#11101d;
+    --bg-3:#1a1530;
+    --panel:rgba(20,18,32,0.55);
+    --panel-border:rgba(255,255,255,0.08);
+    --text-hi:#f1eefc;
+    --text-mid:#b8b3cf;
+    --text-low:#736d8e;
+
+    /* accent — swappable at runtime via JS, these are defaults (violet) */
+    --accent:#9d7bff;
+    --accent-2:#5ed8c9;
+    --accent-rgb:157,123,255;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+
+  html{scroll-behavior:smooth;}
+
+  body{
+    font-family:'Inter',sans-serif;
+    color:var(--text-hi);
+    min-height:100vh;
+    overflow-x:hidden;
+    background:var(--bg-1);
+  }
+
+  h1,h2,h3,.display{
+    font-family:'Space Grotesk',sans-serif;
+  }
+
+  /* ============================= SCROLLBAR ============================= */
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:var(--bg-1);}
+  ::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,var(--accent),var(--accent-2));
+    border-radius:10px;
+    border:2px solid var(--bg-1);
+  }
+  ::-webkit-scrollbar-thumb:hover{filter:brightness(1.2);}
+
+  /* ============================= ANIMATED GRADIENT BG ============================= */
+  .bg-gradient{
+    position:fixed;
+    inset:0;
+    z-index:-3;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(var(--accent-rgb),0.25), transparent 45%),
+      radial-gradient(circle at 80% 30%, rgba(94,216,201,0.18), transparent 50%),
+      radial-gradient(circle at 50% 80%, rgba(var(--accent-rgb),0.15), transparent 50%),
+      linear-gradient(135deg, var(--bg-1), var(--bg-2) 50%, var(--bg-3));
+    background-size:200% 200%, 200% 200%, 200% 200%, 400% 400%;
+    animation:gradientShift 18s ease infinite;
+  }
+  @keyframes gradientShift{
+    0%{background-position:0% 0%, 100% 0%, 50% 100%, 0% 50%;}
+    50%{background-position:100% 100%, 0% 100%, 50% 0%, 100% 50%;}
+    100%{background-position:0% 0%, 100% 0%, 50% 100%, 0% 50%;}
+  }
+
+  /* subtle film-grain noise overlay for texture */
+  .bg-noise{
+    position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ============================= PARTICLES ============================= */
+  #particles{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;
+  }
+
+  /* ============================= MOUSE GLOW ============================= */
+  .mouse-glow{
+    position:fixed;
+    width:420px;height:420px;
+    border-radius:50%;
+    pointer-events:none;
+    z-index:0;
+    background:radial-gradient(circle, rgba(var(--accent-rgb),0.12), transparent 70%);
+    transform:translate(-50%,-50%);
+    transition:opacity .3s ease;
+    opacity:0;
+  }
+
+  /* ============================= LOADING SCREEN ============================= */
+  #loader{
+    position:fixed;inset:0;
+    background:var(--bg-1);
+    z-index:1000;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:22px;
+    transition:opacity .6s ease, visibility .6s ease;
+  }
+  #loader.hidden{opacity:0;visibility:hidden;}
+
+  .loader-ring{
+    width:64px;height:64px;
+    border-radius:50%;
+    border:3px solid rgba(255,255,255,0.08);
+    border-top-color:var(--accent);
+    border-right-color:var(--accent-2);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .loader-text{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--text-mid);
+  }
+  .loader-pct{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    color:var(--accent);
+    letter-spacing:1px;
+  }
+
+  /* ============================= LAYOUT ============================= */
+  .page{
+    position:relative;
+    z-index:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:40px 20px;
+    opacity:0;
+  }
+  .page.show{
+    animation:fadeUp .9s ease forwards;
+  }
+  @keyframes fadeUp{
+    from{opacity:0; transform:translateY(24px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  /* ============================= CARD ============================= */
+  .card{
+    width:100%;
+    max-width:420px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:24px;
+    backdrop-filter:blur(22px) saturate(140%);
+    -webkit-backdrop-filter:blur(22px) saturate(140%);
+    padding:36px 30px 28px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* faint top sheen */
+  .card::before{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  }
+
+  /* top controls row */
+  .topbar{
+    position:absolute;
+    top:16px; right:16px;
+    display:flex;
+    gap:8px;
+    z-index:5;
+  }
+  .icon-btn{
+    width:34px;height:34px;
+    border-radius:10px;
+    border:1px solid var(--panel-border);
+    background:rgba(255,255,255,0.04);
+    color:var(--text-mid);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    transition:all .25s ease;
+  }
+  .icon-btn:hover{
+    background:rgba(var(--accent-rgb),0.18);
+    color:var(--accent);
+    border-color:rgba(var(--accent-rgb),0.4);
+    transform:translateY(-2px);
+  }
+  .icon-btn svg{width:16px;height:16px;}
+
+  /* ============================= AVATAR ============================= */
+  .avatar-wrap{
+    width:104px;height:104px;
+    margin:6px auto 18px;
+    position:relative;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .avatar-glow{
+    position:absolute;
+    inset:-8px;
+    border-radius:50%;
+    background:conic-gradient(from 0deg, var(--accent), var(--accent-2), var(--accent));
+    filter:blur(14px);
+    opacity:.7;
+    animation:rotateGlow 6s linear infinite;
+  }
+  @keyframes rotateGlow{to{transform:rotate(360deg);}}
+
+  .avatar{
+    width:96px;height:96px;
+    border-radius:50%;
+    position:relative;
+    z-index:2;
+    object-fit:cover;
+    border:3px solid var(--bg-1);
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:34px;
+    color:#0a0a12;
+  }
+
+  .status-dot{
+    position:absolute;
+    bottom:4px; right:4px;
+    width:18px;height:18px;
+    border-radius:50%;
+    background:#5ee87a;
+    border:3px solid var(--bg-1);
+    z-index:3;
+    box-shadow:0 0 8px #5ee87a;
+  }
+
+  /* ============================= IDENTITY ============================= */
+  .identity{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  .username{
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:.3px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+  }
+  .username .verified{
+    width:16px;height:16px;
+    color:var(--accent);
+  }
+
+  .typing-line{
+    margin-top:6px;
+    font-size:13.5px;
+    color:var(--accent-2);
+    min-height:18px;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .typing-line .cursor{
+    display:inline-block;
+    width:2px;
+    margin-left:2px;
+    background:var(--accent-2);
+    animation:blink 1s step-start infinite;
+  }
+  @keyframes blink{50%{opacity:0;}}
+
+  .bio{
+    margin-top:12px;
+    font-size:13.5px;
+    line-height:1.6;
+    color:var(--text-mid);
+    padding:0 6px;
+  }
+
+  .meta-row{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .meta-chip{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--text-mid);
+    background:rgba(255,255,255,0.04);
+    border:1px solid var(--panel-border);
+    padding:6px 12px;
+    border-radius:20px;
+  }
+  .meta-chip svg{width:13px;height:13px;color:var(--accent);}
+
+  /* ============================= DIVIDER ============================= */
+  .divider{
+    height:1px;
+    background:linear-gradient(90deg, transparent, var(--panel-border), transparent);
+    margin:22px 0;
+  }
+
+  /* ============================= SOCIALS ============================= */
+  .socials{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+  }
+  .social-btn{
+    aspect-ratio:1;
+    border-radius:14px;
+    border:1px solid var(--panel-border);
+    background:rgba(255,255,255,0.03);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-mid);
+    cursor:pointer;
+    text-decoration:none;
+    position:relative;
+    overflow:hidden;
+    transition:transform .25s ease, color .25s ease, border-color .25s ease;
+  }
+  .social-btn svg{width:18px;height:18px; position:relative; z-index:2;}
+  .social-btn::after{
+    content:'';
+    position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 120%, rgba(var(--accent-rgb),0.5), transparent 70%);
+    opacity:0;
+    transition:opacity .3s ease;
+  }
+  .social-btn:hover{
+    transform:translateY(-4px);
+    color:#fff;
+    border-color:rgba(var(--accent-rgb),0.5);
+  }
+  .social-btn:hover::after{opacity:1;}
+
+  /* brand-tinted hover per platform, subtle */
+  .social-btn[data-brand="discord"]:hover{color:#8ea1ff;}
+  .social-btn[data-brand="github"]:hover{color:#e7e7ee;}
+  .social-btn[data-brand="youtube"]:hover{color:#ff8585;}
+  .social-btn[data-brand="tiktok"]:hover{color:#8be8e2;}
+  .social-btn[data-brand="facebook"]:hover{color:#7fa9ff;}
+
+  /* ============================= MUSIC PLAYER ============================= */
+  .player{
+    margin-top:20px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    padding:10px 14px;
+  }
+  .play-btn{
+    width:38px;height:38px;
+    border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border:none;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+    color:#0a0a12;
+    transition:transform .2s ease;
+  }
+  .play-btn:hover{transform:scale(1.08);}
+  .play-btn svg{width:15px;height:15px;}
+
+  .track-info{
+    flex:1;
+    min-width:0;
+  }
+  .track-title{
+    font-size:12.5px;
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .track-bars{
+    display:flex;
+    align-items:flex-end;
+    gap:2px;
+    height:14px;
+    margin-top:5px;
+  }
+  .track-bars span{
+    width:3px;
+    background:var(--accent);
+    border-radius:2px;
+    opacity:.5;
+    animation:bar 1.2s ease-in-out infinite;
+    animation-play-state:paused;
+  }
+  .player.playing .track-bars span{opacity:1; animation-play-state:running;}
+  .track-bars span:nth-child(1){height:40%; animation-delay:0s;}
+  .track-bars span:nth-child(2){height:80%; animation-delay:.15s;}
+  .track-bars span:nth-child(3){height:55%; animation-delay:.3s;}
+  .track-bars span:nth-child(4){height:90%; animation-delay:.45s;}
+  .track-bars span:nth-child(5){height:35%; animation-delay:.6s;}
+  @keyframes bar{
+    0%,100%{transform:scaleY(0.4);}
+    50%{transform:scaleY(1);}
+  }
+
+  /* ============================= FOOTER ROW ============================= */
+  .footer-row{
+    margin-top:18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:11.5px;
+    color:var(--text-low);
+  }
+  .visitor-count{
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .visitor-count svg{width:12px;height:12px;}
+  .visitor-count b{color:var(--text-mid); font-weight:600;}
+
+  /* ============================= SETTINGS PANEL ============================= */
+  .settings-panel{
+    position:absolute;
+    top:58px; right:16px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    backdrop-filter:blur(20px);
+    padding:14px;
+    width:170px;
+    z-index:10;
+    opacity:0;
+    transform:translateY(-8px) scale(.96);
+    pointer-events:none;
+    transition:all .22s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  .settings-panel.open{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .settings-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--text-low);
+    margin-bottom:10px;
+  }
+  .swatches{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .swatch{
+    width:24px;height:24px;
+    border-radius:50%;
+    cursor:pointer;
+    border:2px solid transparent;
+    transition:transform .2s ease, border-color .2s ease;
+  }
+  .swatch:hover{transform:scale(1.15);}
+  .swatch.active{border-color:#fff;}
+
+  /* ============================= RESPONSIVE ============================= */
+  @media (max-width:480px){
+    .card{padding:30px 20px 22px; border-radius:20px;}
+    .socials{grid-template-columns:repeat(5,1fr); gap:8px;}
+    .username{font-size:19px;}
+  }
+
+  /* respect reduced motion */
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================= BACKGROUND LAYERS ============================= -->
+<div class="bg-gradient"></div>
+<div class="bg-noise"></div>
+<canvas id="particles"></canvas>
+<div class="mouse-glow" id="mouseGlow"></div>
+
+<!-- ============================= LOADING SCREEN ============================= -->
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">entering profile</div>
+  <div class="loader-pct" id="loaderPct">0%</div>
+</div>
+
+<!-- ============================= MAIN PAGE ============================= -->
+<div class="page" id="page">
+  <div class="card">
+
+    <!-- top-right controls: sound + settings -->
+    <div class="topbar">
+      <button class="icon-btn" id="soundToggle" title="Toggle sound">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="soundIcon">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+      <button class="icon-btn" id="settingsToggle" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- accent color settings panel -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-label">Accent color</div>
+      <div class="swatches">
+        <div class="swatch active" style="background:#9d7bff" data-accent="157,123,255" data-accent2="#5ed8c9"></div>
+        <div class="swatch" style="background:#ff7b9d" data-accent="255,123,157" data-accent2="#ffd27b"></div>
+        <div class="swatch" style="background:#5ed8c9" data-accent="94,216,201" data-accent2="#9d7bff"></div>
+        <div class="swatch" style="background:#ffb84d" data-accent="255,184,77" data-accent2="#ff7b9d"></div>
+        <div class="swatch" style="background:#6fc3ff" data-accent="111,195,255" data-accent2="#9d7bff"></div>
+        <div class="swatch" style="background:#7bff9d" data-accent="123,255,157" data-accent2="#5ed8c9"></div>
+      </div>
+    </div>
+
+    <!-- avatar -->
+    <div class="avatar-wrap">
+      <div class="avatar-glow"></div>
+      <div class="avatar" id="avatar">N</div>
+      <div class="status-dot"></div>
+    </div>
+
+    <!-- identity -->
+    <div class="identity">
+      <div class="username">
+        nova
+        <svg class="verified" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.39 1.94 3.06-.39 1.04 2.9 2.74 1.49-.62 3.05L22 14l-1.39 2.78.62 3.05-2.74 1.49-1.04 2.9-3.06-.39L12 26l-2.39-2.17-3.06.39-1.04-2.9-2.74-1.49.62-3.05L2 14l1.39-2.78-.62-3.05 2.74-1.49 1.04-2.9 3.06.39z" transform="translate(0,-2)"></path></svg>
+      </div>
+      <div class="typing-line"><span id="typingText"></span><span class="cursor" id="typingCursor">&nbsp;</span></div>
+      <p class="bio">designer &amp; developer building small, quiet things on the internet. coffee-powered. always shipping something.</p>
+
+      <div class="meta-row">
+        <div class="meta-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          <span id="statusText">online — building</span>
+        </div>
+        <div class="meta-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          <span>Lisbon, PT</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- social buttons -->
+    <div class="socials">
+      <a class="social-btn" data-brand="discord" href="#" title="Discord">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.558 3c-.2.357-.43.84-.59 1.225a18.27 18.27 0 0 0-5.93 0A8.69 8.69 0 0 0 9.45 3 19.79 19.79 0 0 0 5.69 4.37C2.7 8.84 1.9 13.2 2.3 17.5a19.9 19.9 0 0 0 6.06 3.06c.49-.67.92-1.39 1.29-2.14a12.9 12.9 0 0 1-2.03-.97c.17-.13.34-.26.5-.4a14.2 14.2 0 0 0 12.16 0c.16.14.33.27.5.4-.65.38-1.33.71-2.03.97.37.75.8 1.47 1.29 2.14a19.9 19.9 0 0 0 6.06-3.06c.46-4.99-.78-9.31-3.83-13.13zM9.68 14.9c-1 0-1.82-.92-1.82-2.05 0-1.13.8-2.06 1.82-2.06 1.02 0 1.84.93 1.82 2.06 0 1.13-.8 2.05-1.82 2.05zm5.64 0c-1 0-1.82-.92-1.82-2.05 0-1.13.8-2.06 1.82-2.06 1.02 0 1.84.93 1.82 2.06 0 1.13-.8 2.05-1.82 2.05z"/></svg>
+      </a>
+      <a class="social-btn" data-brand="github" href="#" title="GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2.17c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.66-.3-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.6-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 0z"/></svg>
+      </a>
+      <a class="social-btn" data-brand="youtube" href="#" title="YouTube">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3.02 3.02 0 0 0-2.12-2.14C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.38.56A3.02 3.02 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3.02 3.02 0 0 0 2.12 2.14C4.5 20.5 12 20.5 12 20.5s7.5 0 9.38-.56a3.02 3.02 0 0 0 2.12-2.14A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.6 15.6V8.4l6.27 3.6z"/></svg>
+      </a>
+      <a class="social-btn" data-brand="tiktok" href="#" title="TikTok">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 5.82c-1.02-.91-1.7-2.16-1.87-3.56h-3.07v13.93a3 3 0 1 1-2.43-2.95V9.97a6.13 6.13 0 0 0-1.1-.1A6.18 6.18 0 1 0 14.4 16V9.7a8.92 8.92 0 0 0 5.2 1.67V8.3c-1.13 0-2.18-.36-3-.97z"/></svg>
+      </a>
+      <a class="social-btn" data-brand="facebook" href="#" title="Facebook">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.84c0-2.51 1.49-3.9 3.77-3.9 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.44 2.91h-2.34V22c4.78-.79 8.44-4.94 8.44-9.94z"/></svg>
+      </a>
+    </div>
+
+    <!-- music player -->
+    <div class="player" id="player">
+      <button class="play-btn" id="playBtn">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="track-info">
+        <div class="track-title">midnight signal — lo-fi loop</div>
+        <div class="track-bars">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- footer: visitor counter -->
+    <div class="footer-row">
+      <div class="visitor-count">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <span>visit #<b id="visitorCount">0</b></span>
+      </div>
+      <span>est. 2021</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- hidden audio element used by the music player (silent oscillator fallback, no external file needed) -->
+<audio id="bgAudio" loop></audio>
+
+<script>
+/* =========================================================================
+   PERSONAL PROFILE SITE — vanilla JS, no frameworks
+   Sections: loader, particles, mouse glow, typing fx, settings/accent,
+             social buttons, music player (WebAudio synth, no external file),
+             sound toggle, visitor counter (localStorage)
+   ========================================================================= */
+
+/* ---------------------------- LOADING SCREEN ---------------------------- */
+(function loaderSequence(){
+  const loader = document.getElementById('loader');
+  const pctEl = document.getElementById('loaderPct');
+  const page = document.getElementById('page');
+  let pct = 0;
+
+  const interval = setInterval(() => {
+    // ease toward 100, slowing near the end for a more natural feel
+    pct += Math.max(1, (100 - pct) / 9);
+    if (pct >= 100) {
+      pct = 100;
+      clearInterval(interval);
+      pctEl.textContent = '100%';
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        page.classList.add('show');
+      }, 350);
+      return;
+    }
+    pctEl.textContent = Math.floor(pct) + '%';
+  }, 90);
+})();
+
+/* ---------------------------- PARTICLES (canvas) ---------------------------- */
+(function particles(){
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [];
+  const COUNT = window.innerWidth < 600 ? 35 : 70;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function getAccent(){
+    return getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() || '157,123,255';
+  }
+
+  function spawn(){
+    particles = [];
+    for (let i=0;i<COUNT;i++){
+      particles.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        r: Math.random()*1.6 + 0.4,
+        vx: (Math.random()-0.5)*0.25,
+        vy: (Math.random()-0.5)*0.25,
+        a: Math.random()*0.5+0.15
+      });
+    }
+  }
+  spawn();
+
+  function tick(){
+    ctx.clearRect(0,0,w,h);
+    const accent = getAccent();
+    particles.forEach(p=>{
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${accent}, ${p.a})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+/* ---------------------------- MOUSE GLOW ---------------------------- */
+(function mouseGlow(){
+  const glow = document.getElementById('mouseGlow');
+  let active = false;
+  window.addEventListener('mousemove', (e) => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+    if (!active){ glow.style.opacity = '1'; active = true; }
+  });
+  window.addEventListener('mouseleave', () => { glow.style.opacity = '0'; active = false; });
+})();
+
+/* ---------------------------- TYPING ANIMATION ---------------------------- */
+(function typingFx(){
+  const phrases = [
+    'building cool things on the web',
+    'open to collabs & freelance',
+    'probably listening to lo-fi right now'
+  ];
+  const target = document.getElementById('typingText');
+  let pIndex = 0, charIndex = 0, deleting = false;
+
+  function step(){
+    const current = phrases[pIndex];
+    if (!deleting){
+      charIndex++;
+      target.textContent = current.slice(0, charIndex);
+      if (charIndex === current.length){
+        deleting = true;
+        setTimeout(step, 1600); // pause at full phrase
+        return;
+      }
+    } else {
+      charIndex--;
+      target.textContent = current.slice(0, charIndex);
+      if (charIndex === 0){
+        deleting = false;
+        pIndex = (pIndex+1) % phrases.length;
+      }
+    }
+    setTimeout(step, deleting ? 35 : 55);
+  }
+  step();
+})();
+
+/* ---------------------------- SETTINGS / ACCENT COLOR ---------------------------- */
+(function settingsPanel(){
+  const toggleBtn = document.getElementById('settingsToggle');
+  const panel = document.getElementById('settingsPanel');
+  const swatches = document.querySelectorAll('.swatch');
+  const root = document.documentElement;
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && e.target !== toggleBtn){
+      panel.classList.remove('open');
+    }
+  });
+
+  swatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      const accentRgb = sw.dataset.accent;
+      const accent2 = sw.dataset.accent2;
+      // derive a hex-ish primary from rgb for things needing solid color
+      const [r,g,b] = accentRgb.split(',').map(Number);
+      const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+      root.style.setProperty('--accent-rgb', accentRgb);
+      root.style.setProperty('--accent', hex);
+      root.style.setProperty('--accent-2', accent2);
+      swatches.forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      localStorage.setItem('profile-accent', JSON.stringify({accentRgb, hex, accent2}));
+    });
+  });
+
+  // restore saved accent
+  const saved = localStorage.getItem('profile-accent');
+  if (saved){
+    try{
+      const { accentRgb, hex, accent2 } = JSON.parse(saved);
+      root.style.setProperty('--accent-rgb', accentRgb);
+      root.style.setProperty('--accent', hex);
+      root.style.setProperty('--accent-2', accent2);
+    }catch(err){ /* ignore corrupted storage */ }
+  }
+})();
+
+/* ---------------------------- MUSIC PLAYER (synth, no external file) ---------------------------- */
+(function musicPlayer(){
+  const playBtn = document.getElementById('playBtn');
+  const playIcon = document.getElementById('playIcon');
+  const player = document.getElementById('player');
+  let playing = false;
+  let audioCtx, gainNode, oscillators = [];
+
+  const ICON_PLAY = '<path d="M8 5v14l11-7z"/>';
+  const ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function ensureCtx(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0.06; // gentle ambient volume
+      gainNode.connect(audioCtx.destination);
+    }
+  }
+
+  function startAmbient(){
+    ensureCtx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // simple ambient pad: a couple of detuned sine oscillators
+    const freqs = [220, 330, 440];
+    oscillators = freqs.map((f, i) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const lfo = audioCtx.createGain();
+      lfo.gain.value = 1 / freqs.length;
+      osc.connect(lfo);
+      lfo.connect(gainNode);
+      osc.start();
+      return osc;
+    });
+  }
+
+  function stopAmbient(){
+    oscillators.forEach(o => { try{ o.stop(); }catch(e){} });
+    oscillators = [];
+  }
+
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    if (playing){
+      startAmbient();
+      playIcon.outerHTML = `<svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">${ICON_PAUSE}</svg>`;
+      player.classList.add('playing');
+    } else {
+      stopAmbient();
+      document.getElementById('playIcon').outerHTML = `<svg id="playIcon" viewBox="0 0 24 24" fill="currentColor">${ICON_PLAY}</svg>`;
+      player.classList.remove('playing');
+    }
+  });
+
+  // expose mute state for sound toggle to control player volume too
+  window.__setPlayerMuted = (muted) => {
+    if (gainNode) gainNode.gain.value = muted ? 0 : 0.06;
+  };
+})();
+
+/* ---------------------------- SOUND TOGGLE ---------------------------- */
+(function soundToggle(){
+  const btn = document.getElementById('soundToggle');
+  const icon = document.getElementById('soundIcon');
+  let muted = localStorage.getItem('profile-muted') === 'true';
+
+  function render(){
+    icon.innerHTML = muted
+      ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>'
+      : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+    if (window.__setPlayerMuted) window.__setPlayerMuted(muted);
+  }
+  render();
+
+  btn.addEventListener('click', () => {
+    muted = !muted;
+    localStorage.setItem('profile-muted', muted);
+    render();
+  });
+})();
+
+/* ---------------------------- VISITOR COUNTER (local, fake) ---------------------------- */
+(function visitorCounter(){
+  const el = document.getElementById('visitorCount');
+  let count = parseInt(localStorage.getItem('profile-visits') || '0', 10);
+
+  // base it off a believable starting number the first time
+  if (!count){
+    count = 4280 + Math.floor(Math.random()*40);
+  }
+  count += 1;
+  localStorage.setItem('profile-visits', count);
+
+  // animate the count up for a nice entrance effect
+  let shown = 0;
+  const target = count;
+  const step = Math.max(1, Math.floor(target / 60));
+  const tick = setInterval(() => {
+    shown += step;
+    if (shown >= target){ shown = target; clearInterval(tick); }
+    el.textContent = shown.toLocaleString();
+  }, 16);
+})();
+
+/* ---------------------------- STATUS ROTATION (small touch of life) ---------------------------- */
+(function statusRotate(){
+  const statuses = ['online — building', 'in deep focus', 'open to chat', 'sipping coffee ☕'];
+  const el = document.getElementById('statusText');
+  let i = 0;
+  setInterval(() => {
+    i = (i+1) % statuses.length;
+    el.style.opacity = 0;
+    setTimeout(() => {
+      el.textContent = statuses[i];
+      el.style.opacity = 1;
+    }, 250);
+  }, 5000);
+  el.style.transition = 'opacity .25s ease';
+})();
+</script>
+</body>
+</html>
